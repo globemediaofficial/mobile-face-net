@@ -1,9 +1,10 @@
 import express from "express";
 import fs from "fs";
+import sharp from "sharp";
 import { Interpreter } from "node-tflite";
 
 const app = express();
-app.use(express.json({ limit: "20mb" }));
+app.use(express.json({ limit: "50mb" }));
 
 // Load MobileFaceNet model
 const modelData = fs.readFileSync("./mobilefacenet.tflite");
@@ -11,15 +12,33 @@ const interpreter = new Interpreter(modelData);
 interpreter.allocateTensors();
 console.log("MobileFaceNet TFLite model loaded.");
 
-app.post("/verifyFace", (req, res) => {
+// Helper: preprocess image to Float32Array
+async function preprocessImage(base64: string): Promise<Float32Array> {
+  const buffer = Buffer.from(base64, "base64");
+
+  // Resize to 112x112 and get raw RGB
+  const raw = await sharp(buffer)
+    .resize(112, 112)
+    .removeAlpha()
+    .raw()
+    .toBuffer();
+
+  const floatArray = new Float32Array(raw.length);
+  for (let i = 0; i < raw.length; i++) {
+    floatArray[i] = raw[i] / 127.5 - 1; // normalize to [-1,1]
+  }
+  return floatArray;
+}
+
+app.post("/verifyFace", async (req, res) => {
   try {
     const { images } = req.body;
     if (!images || images.length !== 2) 
       return res.status(400).json({ error: "Two images required" });
 
-    const embeddings = images.map((base64) => {
-      const buffer = Buffer.from(base64, "base64");
-      const inputData = new Float32Array(buffer.buffer); // adjust type to match model
+    const embeddings = [];
+    for (const base64 of images) {
+      const inputData = await preprocessImage(base64);
 
       // Copy input to tensor
       interpreter.inputs[0].copyFrom(inputData);
@@ -31,8 +50,8 @@ app.post("/verifyFace", (req, res) => {
       const outputData = new Float32Array(interpreter.outputs[0].size);
       interpreter.outputs[0].copyTo(outputData);
 
-      return Array.from(outputData);
-    });
+      embeddings.push(Array.from(outputData));
+    }
 
     res.json(embeddings);
   } catch (err) {
