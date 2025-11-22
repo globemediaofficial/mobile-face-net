@@ -13,7 +13,7 @@ interpreter.allocateTensors();
 console.log("MobileFaceNet TFLite model loaded.");
 
 // Helper: preprocess image to Float32Array
-async function preprocessImage(base64) {
+async function preprocessImage(base64: string): Promise<Float32Array> {
   const buffer = Buffer.from(base64, "base64");
 
   // Resize to 112x112 and get raw RGB
@@ -36,24 +36,25 @@ app.post("/verifyFace", async (req, res) => {
     if (!images || images.length !== 2)
       return res.status(400).json({ error: "Two images required" });
 
-const embeddings = images.map((base64) => {
-  const buffer = Buffer.from(base64, "base64");
-  const inputData = new Float32Array(buffer.buffer);
+    const embeddings = [];
+    for (const base64 of images) {
+      // Preprocess the image into Float32Array
+      const inputData = await preprocessImage(base64);
 
-  // Copy input to tensor
-  interpreter.inputs[0].copyFrom(inputData);
+      // Copy input to tensor
+      interpreter.inputs[0].copyFrom(inputData);
 
-  // Run inference
-  interpreter.invoke();
+      // Run inference
+      interpreter.invoke();
 
-  // Get output embedding
-  const outputTensor = interpreter.outputs[0];
-  const outputSize = outputTensor.shape.reduce((a, b) => a * b, 1);
-  const outputData = new Float32Array(outputSize);
-  outputTensor.copyTo(outputData);
+      // Get output embedding
+      const outputTensor = interpreter.outputs[0];
+      const outputSize = outputTensor.shape.reduce((a, b) => a * b, 1);
+      const outputData = new Float32Array(outputSize);
+      outputTensor.copyTo(outputData);
 
-  return Array.from(outputData);
-});
+      embeddings.push(Array.from(outputData));
+    }
 
     res.json(embeddings);
   } catch (err) {
@@ -63,4 +64,6 @@ const embeddings = images.map((base64) => {
 });
 
 const PORT = process.env.PORT || 3291;
-app.listen(PORT, () => console.log(`TFLite server running on port ${PORT}`));
+app.listen(PORT, () =>
+  console.log(`TFLite server running on port ${PORT}`)
+);
