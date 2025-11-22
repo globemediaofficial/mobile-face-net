@@ -8,7 +8,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // Load TFLite model
-const modelBuffer = fs.readFileSync("./face-net/mobilefacenet.tflite");
+const modelBuffer = fs.readFileSync("./mobilefacenet.tflite");
 const model = new tflite.TFLiteModel(modelBuffer);
 
 console.log("MobileFaceNet TFLite model loaded.");
@@ -38,5 +38,5 @@ app.post("/verifyFace", async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3291;
 app.listen(PORT, () => console.log(`TF Lite server running on port ${PORT}`));
