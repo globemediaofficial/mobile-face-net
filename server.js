@@ -36,22 +36,24 @@ app.post("/verifyFace", async (req, res) => {
     if (!images || images.length !== 2)
       return res.status(400).json({ error: "Two images required" });
 
-    const embeddings = [];
-    for (const base64 of images) {
-      const inputData = await preprocessImage(base64);
+const embeddings = images.map((base64) => {
+  const buffer = Buffer.from(base64, "base64");
+  const inputData = new Float32Array(buffer.buffer);
 
-      // Copy input to tensor
-      interpreter.inputs[0].copyFrom(inputData);
+  // Copy input to tensor
+  interpreter.inputs[0].copyFrom(inputData);
 
-      // Run inference
-      interpreter.invoke();
+  // Run inference
+  interpreter.invoke();
 
-      // Get output embedding
-      const outputData = new Float32Array(interpreter.outputs[0].size);
-      interpreter.outputs[0].copyTo(outputData);
+  // Get output embedding
+  const outputTensor = interpreter.outputs[0];
+  const outputSize = outputTensor.shape.reduce((a, b) => a * b, 1);
+  const outputData = new Float32Array(outputSize);
+  outputTensor.copyTo(outputData);
 
-      embeddings.push(Array.from(outputData));
-    }
+  return Array.from(outputData);
+});
 
     res.json(embeddings);
   } catch (err) {
