@@ -12,11 +12,8 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Tell npm to use python3
-RUN npm config set python /usr/bin/python3
-
-# Install dependencies
-RUN npm install
+# Install dependencies and tell node-gyp to use python3
+RUN npm install --python=/usr/bin/python3
 
 # Copy rest of project
 COPY . .
