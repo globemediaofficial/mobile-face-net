@@ -13,7 +13,7 @@ interpreter.allocateTensors();
 console.log("✅ MobileFaceNet TFLite model loaded.");
 
 // Helper: preprocess image to Float32Array
-async function preprocessImage(base64: string) {
+async function preprocessImage(base64) {
   const buffer = Buffer.from(base64, "base64");
 
   // Resize to 112x112 and get raw RGB
