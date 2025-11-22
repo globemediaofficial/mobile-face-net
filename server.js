@@ -11,18 +11,27 @@ const interpreter = new Interpreter(modelData);
 interpreter.allocateTensors();
 console.log("MobileFaceNet TFLite model loaded.");
 
-// Expect body { images: [profileBase64, verificationBase64] }
 app.post("/verifyFace", (req, res) => {
   try {
     const { images } = req.body;
-    if (!images || images.length !== 2) return res.status(400).json({ error: "Two images required" });
+    if (!images || images.length !== 2) 
+      return res.status(400).json({ error: "Two images required" });
 
     const embeddings = images.map((base64) => {
       const buffer = Buffer.from(base64, "base64");
-      const inputData = new Uint8Array(buffer);
-      interpreter.setInputTensorData(0, inputData);
+      const inputData = new Float32Array(buffer.buffer); // adjust type to match model
+
+      // Copy input to tensor
+      interpreter.inputs[0].copyFrom(inputData);
+
+      // Run inference
       interpreter.invoke();
-      return Array.from(interpreter.getOutputTensorData(0));
+
+      // Get output embedding
+      const outputData = new Float32Array(interpreter.outputs[0].size);
+      interpreter.outputs[0].copyTo(outputData);
+
+      return Array.from(outputData);
     });
 
     res.json(embeddings);
